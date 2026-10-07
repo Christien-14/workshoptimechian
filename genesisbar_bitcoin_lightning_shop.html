@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenesisBar - Bitcoin Lightning Network</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- QRCode.js library for rendering QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- Canvas Confetti for payment celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Tailwind Custom Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        btc: {
+                            orange: '#F7931A',
+                            dark: '#111827',
+                            lightning: '#FCD34D'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .glow-btc {
+            box-shadow: 0 0 25px -5px rgba(247, 147, 26, 0.3);
+        }
+
+        .glow-lightning {
+            box-shadow: 0 0 25px -5px rgba(252, 211, 77, 0.4);
+        }
+
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(0.98); }
+        }
+        .pulse-subtle {
+            animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="min-h-full flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-amber-500 selection:text-slate-950">
+
+    <!-- HEADER -->
+    <header class="sticky top-0 z-30 backdrop-blur-md bg-slate-950/80 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Logo & Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-400 p-0.5 shadow-lg glow-btc flex items-center justify-center">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i data-lucide="zap" class="w-6 h-6 text-amber-400 fill-amber-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-amber-400 via-yellow-200 to-white bg-clip-text text-transparent">
+                        GenesisBar
+                    </h1>
+                    <div class="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Lightning Network Express
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats & Cart Button -->
+            <div class="flex items-center gap-4">
+                <!-- BTC Price Tag -->
+                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+                    <i data-lucide="bitcoin" class="w-4 h-4 text-amber-500"></i>
+                    <span class="text-slate-400">1 EUR ≈</span>
+                    <span id="satsRate" class="font-mono text-amber-400 font-semibold">1 600 sats</span>
+                </div>
+
+                <!-- API Status Badge -->
+                <button onclick="openConfigModal()" id="apiBadge" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 transition-colors">
+                    <i data-lucide="key" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span id="apiStatusText">Clés LNbits</span>
+                </button>
+
+                <!-- Cart Button -->
+                <button onclick="toggleCartModal(true)" class="relative p-2.5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-all active:scale-95 flex items-center gap-2">
+                    <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                    <span class="font-bold text-sm hidden sm:inline">Panier</span>
+                    <span id="cartBadge" class="hidden absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 font-black text-xs w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                        0
+                    </span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO BANNER -->
+    <section class="relative overflow-hidden border-b border-slate-800/80 bg-gradient-to-b from-slate-900/50 to-transparent py-12 sm:py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="max-w-2xl">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-4">
+                    <i data-lucide="zap" class="w-3.5 h-3.5"></i> Paiement Instantané sans frais
+                </span>
+                <h2 class="text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+                    Commandez et payez en <span class="text-amber-400">Satoshis</span>.
+                </h2>
+                <p class="mt-4 text-slate-400 text-base sm:text-lg leading-relaxed">
+                    Bienvenue au GenesisBar. Installez-vous à votre table, choisissez vos boissons ou plats préférés, et réglez en quelques secondes grâce au réseau Bitcoin Lightning.
+                </p>
+            </div>
+        </div>
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"></div>
+    </section>
+
+    <!-- MAIN PRODUCT CATALOG -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="flex items-center justify-between mb-8">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                <i data-lucide="utensils" class="w-5 h-5 text-amber-500"></i>
+                Menu de la maison
+            </h3>
+            <span class="text-xs text-slate-400">Prix calculés en temps réel</span>
+        </div>
+
+        <div id="productGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Injected via JavaScript -->
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-800 bg-slate-950 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p>© 2026 GenesisBar. Propulsé par le réseau Bitcoin Lightning & LNbits API.</p>
+            <div class="flex items-center gap-4">
+                <button onclick="openConfigModal()" class="hover:text-amber-400 transition-colors">Configuration LNbits</button>
+                <span>•</span>
+                <a href="https://lnbits.com" target="_blank" class="hover:text-amber-400 transition-colors">À propos de LNbits</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- CART & CHECKOUT MODAL -->
+    <div id="cartModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="shopping-cart" class="w-5 h-5 text-amber-400"></i>
+                    Votre Panier
+                </h3>
+                <button onclick="toggleCartModal(false)" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="cartItemsContainer" class="p-6 overflow-y-auto flex-1 space-y-4 divide-y divide-slate-800/50">
+                <!-- Injected dynamically -->
+            </div>
+
+            <div class="p-6 border-t border-slate-800 bg-slate-950/60 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Numéro de table ou consigne :</label>
+                    <input type="text" id="tableInput" placeholder="Ex: Table 4 / En terrasse" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors">
+                </div>
+
+                <div class="flex justify-between items-center py-2 border-t border-slate-800">
+                    <span class="text-sm font-medium text-slate-400">Total de la commande :</span>
+                    <div class="text-right">
+                        <div id="cartTotalSats" class="text-2xl font-black text-amber-400 font-mono">0 sats</div>
+                        <div id="cartTotalEur" class="text-xs text-slate-400">≈ 0.00 €</div>
+                    </div>
+                </div>
+
+                <button onclick="processCheckout()" id="checkoutBtn" class="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-bold rounded-xl shadow-lg glow-btc transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                    <i data-lucide="zap" class="w-5 h-5 fill-slate-950"></i>
+                    Payer avec Lightning
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTNING PAYMENT MODAL -->
+    <div id="paymentModal" class="fixed inset-0 z-50 hidden bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden text-center p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            
+            <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                <span class="text-xs font-semibold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                    Facture Lightning Générée
+                </span>
+                <button onclick="cancelPayment()" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="relative flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-inner mx-auto w-64 h-64 border-4 border-amber-500/20">
+                <div id="qrcode" class="flex items-center justify-center"></div>
+                <div id="qrLoading" class="absolute inset-0 bg-slate-900/90 rounded-xl flex flex-col items-center justify-center text-amber-400 gap-2">
+                    <i data-lucide="loader-2" class="w-8 h-8 animate-spin"></i>
+                    <span class="text-xs text-slate-300">Génération de la facture...</span>
+                </div>
+            </div>
+
+            <div>
+                <div id="payAmountSats" class="text-3xl font-black text-white font-mono">0 sats</div>
+                <div id="payAmountEur" class="text-xs text-slate-400 mt-1">≈ 0.00 €</div>
+            </div>
+
+            <div id="paymentStatusBox" class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center gap-3">
+                <div id="statusDot" class="w-3 h-3 rounded-full bg-amber-400 animate-pulse"></div>
+                <span id="paymentStatusText" class="text-xs font-medium text-slate-300">En attente du paiement...</span>
+            </div>
+
+            <div class="relative">
+                <input type="text" id="bolt11Input" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-3 pr-24 text-xs font-mono text-slate-400 select-all focus:outline-none">
+                <button onclick="copyInvoice()" class="absolute right-1 top-1 bottom-1 px-3 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span id="copyBtnText">Copier</span>
+                </button>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800/80">
+                <button onclick="simulateSuccessfulPayment()" class="w-full py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium text-xs rounded-xl transition-all">
+                    🧪 Simuler le paiement instantané (Mode Demo)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIGURATION LNBITS MODAL -->
+    <div id="configModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5 text-amber-400"></i>
+                    Configuration LNbits
+                </h3>
+                <button onclick="closeConfigModal()" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Connectez votre portefeuille LNbits pour recevoir réellement les fonds Bitcoin Lightning de GenesisBar.
+            </p>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">URL de votre serveur LNbits :</label>
+                    <input type="text" id="configUrl" placeholder="https://demo.lnbits.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Clé de lecture / Facturation (Invoice / Read Key) :</label>
+                    <input type="password" id="configApiKey" placeholder="ex: 2c1fa3c7d2f94b7ead..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                    <span class="text-[10px] text-slate-500 mt-1 block">Trouvable dans les paramètres de votre portefeuille LNbits ("Invoice/read key").</span>
+                </div>
+            </div>
+
+            <div class="pt-3 flex gap-2">
+                <button onclick="saveLNbitsConfig()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs transition-colors">
+                    Enregistrer les clés
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // ⚡ LNBITS CONFIGURATION (AVEC CLÉS DEMO ET CONTOURNEMENT CORS)
+        // =========================================================================
+        let LNBITS_CONFIG = {
+            URL: "https://demo.lnbits.com",
+            READ_KEY: "2c1fa3c7d2f94b7ead5371bdcb4ff78c" 
+        };
+        // =========================================================================
+
+        const PRODUCTS = [
+            {
+                id: "p1",
+                name: "Satoshi Espresso",
+                category: "Café",
+                description: "Café intense torréfié à cœur, parfait pour démarrer le minage de votre journée.",
+                sats: 3500,
+                image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80"
+            },
+            {
+                id: "p2",
+                name: "Lightning Craft Beer",
+                category: "Boissons",
+                description: "IPA artisanale locale, rafraîchissante et servie à la vitesse de la lumière.",
+                sats: 8500,
+                image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=600&q=80"
+            },
+            {
+                id: "p3",
+                name: "Blockchain Cocktail",
+                category: "Cocktail",
+                description: "Mélange fruité confidentiel et sécurisé par cryptographie.",
+                sats: 12000,
+                image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=600&q=80"
+            },
+            {
+                id: "p4",
+                name: "Crypto Burger Gourmet",
+                category: "Plats",
+                description: "Pain artisanal, effiloché de bœuf Angus, fromage fondu et sauce maison.",
+                sats: 19500,
+                image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80"
+            },
+            {
+                id: "p5",
+                name: "Nostr Nachos",
+                category: "Snacks",
+                description: "Nachos croustillants nappés de guacamole frais et cheddar fondu à partager.",
+                sats: 9000,
+                image: "https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?auto=format&fit=crop&w=600&q=80"
+            },
+            {
+                id: "p6",
+                name: "Peer-to-Peer Pizza",
+                category: "Plats",
+                description: "La fameuse pizza 10 000 BTC, revisitée en version napolitaine ultra gourmande.",
+                sats: 22000,
+                image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80"
+            }
+        ];
+
+        let cart = [];
+        let currentPaymentHash = null;
+        let paymentPollInterval = null;
+        let satsPerEurRate = 1600;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUrl = localStorage.getItem('genesis_lnbits_url');
+            const savedKey = localStorage.getItem('genesis_lnbits_key');
+            if (savedUrl) LNBITS_CONFIG.URL = savedUrl;
+            if (savedKey) LNBITS_CONFIG.READ_KEY = savedKey;
+
+            lucide.createIcons();
+            renderProducts();
+            updateApiStatusBadge();
+            fetchBtcPrice();
+        });
+
+        function formatEur(sats) {
+            const eur = (sats / satsPerEurRate).toFixed(2);
+            return `≈ ${eur} €`;
+        }
+
+        async function fetchBtcPrice() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur');
+                const data = await response.json();
+                if (data && data.bitcoin && data.bitcoin.eur) {
+                    const btcEur = data.bitcoin.eur;
+                    satsPerEurRate = Math.round(100000000 / btcEur);
+                    document.getElementById('satsRate').innerText = `${satsPerEurRate.toLocaleString()} sats`;
+                    renderProducts();
+                }
+            } catch (e) {
+                console.log("Utilisation de l'estimation de prix par défaut.");
+            }
+        }
+
+        function renderProducts() {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = PRODUCTS.map(product => `
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden hover:border-amber-500/40 transition-all duration-300 flex flex-col group hover:shadow-xl hover:shadow-amber-500/5">
+                    <div class="relative h-48 overflow-hidden bg-slate-950">
+                        <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
+                        <span class="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-semibold text-amber-400 border border-slate-800">
+                            ${product.category}
+                        </span>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+                        <div>
+                            <h4 class="text-lg font-bold text-white group-hover:text-amber-400 transition-colors">${product.name}</h4>
+                            <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">${product.description}</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                            <div>
+                                <div class="text-lg font-black text-amber-400 font-mono">${product.sats.toLocaleString()} sats</div>
+                                <div class="text-[11px] text-slate-500">${formatEur(product.sats)}</div>
+                            </div>
+                            <button onclick="addToCart('${product.id}')" class="px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/30 font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Ajouter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addToCart(productId) {
+            const product = PRODUCTS.find(p => p.id === productId);
+            if (!product) return;
+
+            const existing = cart.find(item => item.product.id === productId);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cart.push({ product, quantity: 1 });
+            }
+
+            updateCartUI();
+        }
+
+        function updateQuantity(productId, delta) {
+            const item = cart.find(i => i.product.id === productId);
+            if (!item) return;
+
+            item.quantity += delta;
+            if (item.quantity <= 0) {
+                cart = cart.filter(i => i.product.id !== productId);
+            }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const totalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const totalSats = cart.reduce((sum, item) => sum + (item.product.sats * item.quantity), 0);
+
+            const badge = document.getElementById('cartBadge');
+            if (totalCount > 0) {
+                badge.innerText = totalCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            const container = document.getElementById('cartItemsContainer');
+            if (cart.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-500">
+                        <i data-lucide="shopping-bag" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+                        <p class="text-sm">Votre panier est vide pour le moment.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = cart.map(item => `
+                    <div class="flex items-center justify-between pt-3">
+                        <div class="flex-1 pr-4">
+                            <h5 class="text-sm font-bold text-white">${item.product.name}</h5>
+                            <div class="text-xs text-amber-400 font-mono mt-0.5">${(item.product.sats * item.quantity).toLocaleString()} sats</div>
+                        </div>
+                        <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                            <button onclick="updateQuantity('${item.product.id}', -1)" class="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition-colors">
+                                <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <span class="w-6 text-center text-xs font-bold text-white">${item.quantity}</span>
+                            <button onclick="updateQuantity('${item.product.id}', 1)" class="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 flex items-center justify-center transition-colors">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('cartTotalSats').innerText = `${totalSats.toLocaleString()} sats`;
+            document.getElementById('cartTotalEur').innerText = formatEur(totalSats);
+
+            lucide.createIcons();
+        }
+
+        function toggleCartModal(show) {
+            const modal = document.getElementById('cartModal');
+            if (show) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        async function processCheckout() {
+            const totalSats = cart.reduce((sum, item) => sum + (item.product.sats * item.quantity), 0);
+            if (totalSats <= 0) {
+                alert("Votre panier est vide !");
+                return;
+            }
+
+            const tableNote = document.getElementById('tableInput').value.trim() || "Table non spécifiée";
+
+            toggleCartModal(false);
+            openPaymentModal(totalSats);
+
+            try {
+                const memo = `GenesisBar - Commande (${tableNote})`;
+                const invoiceData = await createLNbitsInvoice(totalSats, memo);
+
+                if (invoiceData && invoiceData.payment_request) {
+                    displayInvoice(invoiceData.payment_request, invoiceData.payment_hash);
+                    startPollingPaymentStatus(invoiceData.payment_hash);
+                } else {
+                    throw new Error("Impossible de générer la facture.");
+                }
+            } catch (error) {
+                console.error("Erreur lors de la création de la facture:", error);
+                showInvoiceError();
+            }
+        }
+
+        // =========================================================================
+        // APPELS API LNBETS AVEC PROXY DE CONTOURNEMENT CORS
+        // =========================================================================
+        async function createLNbitsInvoice(amountSats, memo) {
+            const cleanUrl = LNBITS_CONFIG.URL.replace(/\/$/, "");
+            const targetEndpoint = `${cleanUrl}/api/v1/payments`;
+            
+            // Passage par le Proxy CORS
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetEndpoint)}`;
+
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': LNBITS_CONFIG.READ_KEY
+                },
+                body: JSON.stringify({
+                    out: false,
+                    amount: amountSats,
+                    memo: memo
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+
+            return await response.json();
+        }
+
+        async function checkPaymentStatus(paymentHash) {
+            const cleanUrl = LNBITS_CONFIG.URL.replace(/\/$/, "");
+            const targetEndpoint = `${cleanUrl}/api/v1/payments/${paymentHash}`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetEndpoint)}`;
+
+            const response = await fetch(proxyUrl, {
+                method: 'GET',
+                headers: {
+                    'X-Api-Key': LNBITS_CONFIG.READ_KEY
+                }
+            });
+
+            if (!response.ok) return false;
+            const data = await response.json();
+            return data.paid === true;
+        }
+
+        function startPollingPaymentStatus(paymentHash) {
+            if (paymentPollInterval) clearInterval(paymentPollInterval);
+
+            paymentPollInterval = setInterval(async () => {
+                try {
+                    const isPaid = await checkPaymentStatus(paymentHash);
+                    if (isPaid) {
+                        clearInterval(paymentPollInterval);
+                        handlePaymentSuccess();
+                    }
+                } catch (e) {
+                    console.log("Erreur lors du suivi du paiement", e);
+                }
+            }, 2500);
+        }
+
+        function openPaymentModal(sats) {
+            const modal = document.getElementById('paymentModal');
+            modal.classList.remove('hidden');
+
+            document.getElementById('payAmountSats').innerText = `${sats.toLocaleString()} sats`;
+            document.getElementById('payAmountEur').innerText = formatEur(sats);
+            document.getElementById('qrLoading').classList.remove('hidden');
+            document.getElementById('qrcode').innerHTML = "";
+            document.getElementById('bolt11Input').value = "";
+            document.getElementById('paymentStatusText').innerText = "Génération de la facture LNbits...";
+        }
+
+        function displayInvoice(bolt11, paymentHash) {
+            currentPaymentHash = paymentHash;
+            document.getElementById('qrLoading').classList.add('hidden');
+            document.getElementById('bolt11Input').value = bolt11;
+            
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: bolt11.toUpperCase(),
+                width: 220,
+                height: 220,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            document.getElementById('paymentStatusText').innerText = "En attente du règlement Lightning...";
+        }
+
+        function showInvoiceError() {
+            document.getElementById('qrLoading').classList.add('hidden');
+            document.getElementById('qrcode').innerHTML = `
+                <div class="text-center p-4 text-red-500">
+                    <i data-lucide="alert-triangle" class="w-10 h-10 mx-auto mb-2"></i>
+                    <p class="text-xs font-bold">Erreur de connexion LNbits</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Vérifiez vos clés d'API dans la configuration.</p>
+                </div>
+            `;
+            document.getElementById('paymentStatusText').innerText = "Échec de génération de la facture";
+            lucide.createIcons();
+        }
+
+        function handlePaymentSuccess() {
+            if (window.confetti) {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            document.getElementById('paymentStatusText').innerText = "Paiement Reçu ! Commande validée 🎉";
+            const statusBox = document.getElementById('paymentStatusBox');
+            statusBox.className = "p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center gap-3 text-emerald-400";
+            document.getElementById('statusDot').className = "w-3 h-3 rounded-full bg-emerald-400";
+
+            cart = [];
+            updateCartUI();
+
+            setTimeout(() => {
+                cancelPayment();
+            }, 4000);
+        }
+
+        function simulateSuccessfulPayment() {
+            if (paymentPollInterval) clearInterval(paymentPollInterval);
+            handlePaymentSuccess();
+        }
+
+        function cancelPayment() {
+            if (paymentPollInterval) clearInterval(paymentPollInterval);
+            document.getElementById('paymentModal').classList.add('hidden');
+            
+            const statusBox = document.getElementById('paymentStatusBox');
+            statusBox.className = "p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-center gap-3";
+            document.getElementById('statusDot').className = "w-3 h-3 rounded-full bg-amber-400 animate-pulse";
+        }
+
+        function copyInvoice() {
+            const input = document.getElementById('bolt11Input');
+            if (!input.value) return;
+
+            input.select();
+            navigator.clipboard.writeText(input.value);
+
+            const btnText = document.getElementById('copyBtnText');
+            btnText.innerText = "Copié !";
+            setTimeout(() => {
+                btnText.innerText = "Copier";
+            }, 2000);
+        }
+
+        function openConfigModal() {
+            document.getElementById('configUrl').value = LNBITS_CONFIG.URL;
+            document.getElementById('configApiKey').value = LNBITS_CONFIG.READ_KEY;
+            document.getElementById('configModal').classList.remove('hidden');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.add('hidden');
+        }
+
+        function saveLNbitsConfig() {
+            const url = document.getElementById('configUrl').value.trim();
+            const key = document.getElementById('configApiKey').value.trim();
+
+            if (url && key) {
+                LNBITS_CONFIG.URL = url;
+                LNBITS_CONFIG.READ_KEY = key;
+
+                localStorage.setItem('genesis_lnbits_url', url);
+                localStorage.setItem('genesis_lnbits_key', key);
+
+                updateApiStatusBadge();
+                closeConfigModal();
+                alert("Configuration LNbits enregistrée avec succès !");
+            }
+        }
+
+        function updateApiStatusBadge() {
+            const statusText = document.getElementById('apiStatusText');
+            if (LNBITS_CONFIG.READ_KEY) {
+                statusText.innerText = "LNbits Connecté";
+            } else {
+                statusText.innerText = "Configurer LNbits";
+            }
+        }
+    </script>
+</body>
+</html>
